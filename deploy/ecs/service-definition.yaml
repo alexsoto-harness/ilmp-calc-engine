@@ -1,5 +1,5 @@
-# Rolling deploys use calc_tg_arn. Blue/green stages take target groups from
-# the ALB listener rules configured in the deploy step instead.
+# Rolling stages (Dev, QA, UAT) use calc_tg_arn. Blue/green stages (QADR, Prod) use
+# service-definition-bluegreen.yaml, which carries the Harness target group placeholder.
 launchType: FARGATE
 serviceName: ilmp-calc-engine-<+env.variables.ilmp_env_short>
 desiredCount: 1

@@ -1,0 +1,31 @@
+# Blue/green stages (QADR, Prod). Harness requires the targetGroupArn placeholder
+# and fills it with the blue or green target group at deploy time.
+# Rolling stages use service-definition.yaml.
+launchType: FARGATE
+serviceName: ilmp-calc-engine-<+env.variables.ilmp_env_short>
+desiredCount: 1
+networkConfiguration:
+  awsvpcConfiguration:
+    assignPublicIp: ENABLED
+    securityGroups:
+      - <+env.variables.ilmp_task_sg>
+    subnets:
+      - <+env.variables.ilmp_subnet_a>
+      - <+env.variables.ilmp_subnet_b>
+loadBalancers:
+  - targetGroupArn: <+targetGroupArn>
+    containerName: calc-engine
+    containerPort: 8080
+deploymentConfiguration:
+  maximumPercent: 200
+  minimumHealthyPercent: 100
+  deploymentCircuitBreaker:
+    enable: true
+    rollback: false
+healthCheckGracePeriodSeconds: 30
+propagateTags: SERVICE
+tags:
+  - key: customer
+    value: spdji
+  - key: demo
+    value: ilmp
