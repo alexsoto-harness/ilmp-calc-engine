@@ -25,24 +25,27 @@ class BacktestRequest(BaseModel):
 
 
 @lru_cache(maxsize=1)
-def _running_image() -> tuple[str, str]:
-    """Return (image, digest) of the running container.
+def _running_image() -> tuple[str, str, str]:
+    """Return (image, digest, task_definition) of the running container.
 
     On ECS the task metadata endpoint reports the digest that was actually
-    pulled, so /version proves what is running rather than what CI intended.
+    pulled and the task definition revision, so /version proves what is
+    running rather than what CI intended.
     """
     uri = os.getenv("ECS_CONTAINER_METADATA_URI_V4")
     if uri:
         try:
             meta = httpx.get(uri, timeout=2.0).json()
+            task = httpx.get(f"{uri}/task", timeout=2.0).json()
             image = meta.get("Image", "")
             digest = meta.get("ImageID", "")
             if "@sha256:" in image:
                 digest = image.split("@", 1)[1]
-            return image, digest or "unknown"
+            taskdef = f"{task.get('Family', '')}:{task.get('Revision', '')}"
+            return image, digest or "unknown", taskdef
         except (httpx.HTTPError, ValueError):
             pass
-    return os.getenv("IMAGE_REF", "local"), os.getenv("IMAGE_DIGEST", "unknown")
+    return os.getenv("IMAGE_REF", "local"), os.getenv("IMAGE_DIGEST", "unknown"), "local"
 
 
 @app.get("/health")
@@ -52,11 +55,12 @@ def health() -> dict:
 
 @app.get("/version")
 def version() -> dict:
-    image, digest = _running_image()
+    image, digest, taskdef = _running_image()
     return {
         "component": "calc-engine",
         "image": image,
         "image_digest": digest,
+        "task_definition": taskdef,
         "image_tag": os.getenv("IMAGE_TAG", "dev"),
         "commit_sha": os.getenv("GIT_SHA", "unknown"),
         "build_number": os.getenv("BUILD_NUMBER", "0"),
