@@ -56,8 +56,24 @@ def _work(job_id: str, index_id: str, days: int) -> None:
     try:
         level = run_backtest(index_id, days)
         _update(job_id, status=COMPLETED, index_level=level)
+        _publish_reference_rate(index_id, level)
     except (ArithmeticError, ValueError) as exc:
         _update(job_id, status=FAILED, error=f"{type(exc).__name__}: {exc}")
+
+
+def _publish_reference_rate(index_id: str, level: float) -> None:
+    """Share the latest backtest level with the pricing service."""
+    with _lock, _conn() as conn:
+        conn.execute("ATTACH DATABASE ? AS pricing", (_DB_PATH + ".pricing",))
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS pricing.ref_rates (index_id TEXT, level REAL, at REAL)"
+        )
+        conn.execute(
+            "INSERT INTO pricing.ref_rates (index_id, level, at) VALUES (?, ?, ?)",
+            (index_id, level, time.time()),
+        )
+        conn.commit()
+        conn.execute("DETACH DATABASE pricing")
 
 
 def submit(index_id: str, days: int) -> str:
