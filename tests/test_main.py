@@ -97,3 +97,15 @@ def test_index_levels_start_at_base():
     levels = backtest.index_levels(backtest.constituent_prices("X", 3))
     assert levels[0] == backtest.BASE_LEVEL
     assert len(levels) == 4
+
+
+def test_analytics_for_completed_backtest(client):
+    job_id = client.post("/backtest", json={"days": 3}).json()["job_id"]
+    job = wait_for(client, job_id)
+    body = client.get(f"/backtest/{job_id}/analytics").json()
+    assert body["period_return_pct"] == round((job["index_level"] / 1000.0 - 1) * 100, 4)
+
+
+def test_analytics_conflict_while_running(client):
+    job_id = client.post("/backtest", json={"days": 3}).json()["job_id"]
+    assert client.get(f"/backtest/{job_id}/analytics").status_code == 409

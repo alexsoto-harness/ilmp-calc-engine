@@ -14,7 +14,7 @@ import httpx
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from app import jobs
+from app import backtest, jobs
 
 app = FastAPI(title="ILMP calc engine", version="1.0.0")
 
@@ -76,3 +76,20 @@ def get_backtest(job_id: str) -> dict:
     if job is None:
         raise HTTPException(status_code=404, detail="job not found")
     return job
+
+
+@app.get("/backtest/{job_id}/analytics")
+def get_backtest_analytics(job_id: str) -> dict:
+    """FR-102: period return of a completed backtest versus the base level."""
+    job = jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="job not found")
+    if job["status"] != jobs.COMPLETED:
+        raise HTTPException(status_code=409, detail=f"job is {job['status']}")
+    period_return = job["index_level"] / backtest.BASE_LEVEL - 1
+    return {
+        "job_id": job_id,
+        "index_id": job["index_id"],
+        "days": job["days"],
+        "period_return_pct": round(period_return * 100, 4),
+    }
