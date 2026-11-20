@@ -5,6 +5,8 @@ import random
 
 BASE_LEVEL = 1000.0
 CONSTITUENTS = 50
+REBALANCE_EVERY = 5
+LIQUIDITY_FLOOR = 1000  # minimum close for rebalance eligibility
 
 
 def constituent_prices(index_id: str, days: int) -> list[list[float]]:
@@ -21,12 +23,22 @@ def constituent_prices(index_id: str, days: int) -> list[list[float]]:
     return prices
 
 
+def rebalance_weights(prices: list[list[float]], day: int) -> list[float]:
+    """Equal weight across constituents that clear the liquidity floor."""
+    eligible = [1.0 if p[day] >= LIQUIDITY_FLOOR else 0.0 for p in prices]
+    total = sum(eligible)
+    return [e / total for e in eligible]
+
+
 def index_levels(prices: list[list[float]]) -> list[float]:
     days = len(prices[0]) - 1
     levels = [BASE_LEVEL]
+    weights = [1.0 / len(prices)] * len(prices)
     for d in range(1, days + 1):
-        daily = sum(p[d] / p[d - 1] - 1 for p in prices) / len(prices)
+        daily = sum(w * (p[d] / p[d - 1] - 1) for w, p in zip(weights, prices))
         levels.append(levels[-1] * (1 + daily))
+        if d % REBALANCE_EVERY == 0:
+            weights = rebalance_weights(prices, d)
     return levels
 
 
