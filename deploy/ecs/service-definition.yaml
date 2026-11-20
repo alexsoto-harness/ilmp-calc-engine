@@ -1,0 +1,30 @@
+# Rolling deploys use calc_tg_arn. Blue/green stages take target groups from
+# the ALB listener rules configured in the deploy step instead.
+launchType: FARGATE
+serviceName: ilmp-calc-engine-<+env.variables.ilmp_env_short>
+desiredCount: 1
+networkConfiguration:
+  awsvpcConfiguration:
+    assignPublicIp: ENABLED
+    securityGroups:
+      - <+env.variables.ilmp_task_sg>
+    subnets:
+      - <+env.variables.ilmp_subnet_a>
+      - <+env.variables.ilmp_subnet_b>
+loadBalancers:
+  - targetGroupArn: <+env.variables.calc_tg_arn>
+    containerName: calc-engine
+    containerPort: 8080
+deploymentConfiguration:
+  maximumPercent: 200
+  minimumHealthyPercent: 100
+  deploymentCircuitBreaker:
+    enable: true
+    rollback: false
+healthCheckGracePeriodSeconds: 30
+propagateTags: SERVICE
+tags:
+  - key: customer
+    value: spdji
+  - key: demo
+    value: ilmp

@@ -1,0 +1,25 @@
+# Data dictionary for the calc engine. Eval dimension D checks API and DB
+# fields against this file.
+schema: calc
+tables:
+  calc_backtest_job:
+    job_id: {type: text, description: Backtest job identifier}
+    index_id: {type: text, description: Index being backtested}
+    days: {type: integer, unit: trading_days}
+    status: {type: text, enum: [QUEUED, RUNNING, COMPLETED, FAILED]}
+    index_level: {type: real, unit: index_points}
+    error: {type: text}
+    created_at: {type: real, unit: epoch_seconds}
+    updated_at: {type: real, unit: epoch_seconds}
+api:
+  BacktestRequest:
+    index_id: {type: string, max_length: 64}
+    days: {type: integer, min: 1, max: 30, unit: trading_days}
+  Version:
+    component: {type: string}
+    image: {type: string}
+    image_digest: {type: string, format: "sha256:<hex>"}
+    image_tag: {type: string, format: "RC-<component>-<build>-<shortsha>"}
+    commit_sha: {type: string}
+    build_number: {type: string}
+    environment: {type: string}
